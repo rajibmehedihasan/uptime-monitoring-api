@@ -1,0 +1,16 @@
+{
+    "name": "uptime-monitoring-api",
+    "version": "1.0.0",
+    "main": "index.js",
+    "repository": "https://github.com/rajibmehedihasan/uptime-monitoring-api.git",
+    "author": "rajibmehedihasan <mehedi.hasan2724@gmail.com>",
+    "license": "MIT",
+    "devDependencies": {
+        "eslint": "7.2.0",
+        "eslint-config-airbnb-base": "14.2.1",
+        "eslint-config-prettier": "^6.15.0",
+        "eslint-plugin-import": "^2.22.1",
+        "eslint-plugin-prettier": "^3.1.4",
+        "prettier": "^2.1.2"
+    }
+}
