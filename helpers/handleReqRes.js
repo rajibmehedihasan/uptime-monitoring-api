@@ -5,8 +5,6 @@
  * Date: 01/11/2023
  *
  */
-
-require("dotenv").config();
 const { StringDecoder } = require("string_decoder");
 const { URL } = require("url");
 const routes = require("../routes");
@@ -17,7 +15,7 @@ const {
 const handler = {};
 
 handler.handleReqRes = (req, res) => {
-    const parsedURL = new URL(req.url, process.env.APP_BASE_URL);
+    const parsedURL = new URL(req.url, "http://localhost:3000");
     const path = parsedURL.pathname;
     const trimmedPath = path.replace(/^\/+|\/+$/g, "");
     const method = req.method.toLowerCase();
@@ -40,24 +38,21 @@ handler.handleReqRes = (req, res) => {
         ? routes[trimmedPath]
         : notFoundHandler;
 
-    chosenHandler(requestProperties, (statusCode, payload) => {
-        statusCode = typeof statusCode === "number" ? statusCode : 500;
-        payload = typeof payload === "object" ? payload : {};
-
-        const payloadString = JSON.stringify(payload);
-
-        res.writeHead(statusCode);
-        res.end(payloadString);
-    });
-
     req.on("data", (buffer) => {
         realData += decoder.write(buffer);
     });
 
     req.on("end", () => {
         realData += decoder.end();
-        console.log(realData);
-        res.end("Hello World");
+        chosenHandler(requestProperties, (statusCode, payload) => {
+            statusCode = typeof statusCode === "number" ? statusCode : 500;
+            payload = typeof payload === "object" ? payload : {};
+
+            const payloadString = JSON.stringify(payload);
+
+            res.writeHead(statusCode);
+            res.end(payloadString);
+        });
     });
 };
 

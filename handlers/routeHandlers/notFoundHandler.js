@@ -10,6 +10,7 @@ const handler = {};
 
 handler.notFoundHandler = (requestProperties, callback) => {
     callback(404, {
+        status: 404,
         message: "Not Found!!!",
     });
 };

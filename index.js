@@ -8,20 +8,15 @@
 
 const http = require("http");
 const { handleReqRes } = require("./helpers/handleReqRes");
+const environment = require("./handlers/routeHandlers/environment");
 
 const app = {};
 
-app.config = {
-    port: 3000,
-};
-
 app.createServer = () => {
-    const server = http.createServer(app.handleReqRes);
-    server.listen(app.config.port, () => {
-        console.log(`App is listening to port ${app.config.port}`);
+    const server = http.createServer(handleReqRes);
+    server.listen(environment.port, () => {
+        console.log(`App is listening to port ${environment.port}`);
     });
 };
-
-app.handleReqRes = handleReqRes;
 
 app.createServer();
