@@ -6,8 +6,8 @@
     "author": "rajibmehedihasan <mehedi.hasan2724@gmail.com>",
     "license": "MIT",
     "scripts": {
-        "start": "set NODE_ENV=development & nodemon index",
-        "prod": "set NODE_ENV=production & nodemon index"
+        "start": "set NODE_ENV=development set && set APP_BASE_URL=http://localhost:3000 && nodemon index",
+        "prod": "set NODE_ENV=production && set APP_BASE_URL=http://localhost:3000 && nodemon index"
     },
     "devDependencies": {
         "eslint": "7.2.0",
