@@ -11,11 +11,15 @@ const routes = require("../routes");
 const {
     notFoundHandler,
 } = require("../handlers/routeHandlers/notFoundHandler");
+const { parseJSON } = require("./utilities");
 
 const handler = {};
 
 handler.handleReqRes = (req, res) => {
-    const parsedURL = new URL(req.url, process.env.APP_BASE_URL);
+    const parsedURL = new URL(
+        req.url,
+        process.env.APP_BASE_URL || "http://localhost:3000"
+    );
     const path = parsedURL.pathname;
     const trimmedPath = path.replace(/^\/+|\/+$/g, "");
     const method = req.method.toLowerCase();
@@ -44,12 +48,14 @@ handler.handleReqRes = (req, res) => {
 
     req.on("end", () => {
         realData += decoder.end();
-        chosenHandler(requestProperties, (statusCode, payload) => {
-            statusCode = typeof statusCode === "number" ? statusCode : 500;
-            payload = typeof payload === "object" ? payload : {};
+        requestProperties.body = parseJSON(realData);
+        chosenHandler(requestProperties, (status, data) => {
+            const statusCode = typeof status === "number" ? status : 500;
+            const payload = typeof data === "object" ? data : {};
 
             const payloadString = JSON.stringify(payload);
 
+            res.setHeader("Content-Type", "application/json");
             res.writeHead(statusCode);
             res.end(payloadString);
         });
