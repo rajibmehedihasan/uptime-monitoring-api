@@ -6,7 +6,7 @@
  *
  */
 
-const { stringValidator } = require("../../helpers/utilities");
+const { stringValidator, hash } = require("../../helpers/utilities");
 const { create } = require("../../lib/data");
 
 const handler = {};
@@ -39,17 +39,17 @@ handler._users.post = (requestProperties, callback) => {
             firstName,
             lastName,
             phone,
-            password,
+            password: hash(password, phone),
             tosAgreement,
         };
         create("users", phone, _data, (err) => {
             if (!err) {
                 callback(200, {
-                    message: "User was created successfully",
+                    message: "User created successfully",
                 });
             } else {
                 callback(500, {
-                    error: "Could not able to create user",
+                    error: err || "Could not able to create user",
                 });
             }
         });

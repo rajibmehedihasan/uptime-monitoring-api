@@ -6,6 +6,8 @@
  *
  */
 
+const { createHmac } = require("node:crypto");
+
 const utilities = {};
 
 // Parse JSON
@@ -19,6 +21,13 @@ utilities.parseJSON = (string) => {
     }
 
     return output;
+};
+
+// Hash
+utilities.hash = (string, secret) => {
+    const hash = createHmac("sha256", secret).update(string).digest("hex");
+    console.log(hash);
+    return hash;
 };
 
 utilities.stringValidator = (value) => {
