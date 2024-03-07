@@ -60,7 +60,11 @@ handler._users.post = (requestProperties, callback) => {
     }
 };
 
-handler._users.get = (requestProperties, callback) => {};
+handler._users.get = (requestProperties, callback) => {
+    const phone = stringValidator(requestProperties.searchParams.get("phone"));
+
+    console.log(phone);
+};
 
 handler._users.put = (requestProperties, callback) => {};
 

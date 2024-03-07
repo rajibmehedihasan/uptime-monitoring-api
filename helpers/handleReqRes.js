@@ -18,13 +18,14 @@ const handler = {};
 handler.handleReqRes = (req, res) => {
     const parsedURL = new URL(
         req.url,
-        process.env.APP_BASE_URL || "http://localhost:3000"
+        process.env.APP_BASE_URL || "http://localhost:3000/"
     );
     const path = parsedURL.pathname;
     const trimmedPath = path.replace(/^\/+|\/+$/g, "");
     const method = req.method.toLowerCase();
     const queryStringObject = parsedURL.query;
     const headersObject = req.headers;
+    const searchParams = parsedURL.searchParams;
 
     const requestProperties = {
         parsedURL,
@@ -33,6 +34,7 @@ handler.handleReqRes = (req, res) => {
         method,
         queryStringObject,
         headersObject,
+        searchParams,
     };
 
     const decoder = new StringDecoder("utf-8");
