@@ -23,9 +23,8 @@ handler.handleReqRes = (req, res) => {
     const path = parsedURL.pathname;
     const trimmedPath = path.replace(/^\/+|\/+$/g, "");
     const method = req.method.toLowerCase();
-    const queryStringObject = parsedURL.query;
+    const queryStringObject = parsedURL.searchParams;
     const headersObject = req.headers;
-    const searchParams = parsedURL.searchParams;
 
     const requestProperties = {
         parsedURL,
@@ -34,7 +33,6 @@ handler.handleReqRes = (req, res) => {
         method,
         queryStringObject,
         headersObject,
-        searchParams,
     };
 
     const decoder = new StringDecoder("utf-8");
@@ -50,7 +48,9 @@ handler.handleReqRes = (req, res) => {
 
     req.on("end", () => {
         realData += decoder.end();
-        requestProperties.body = parseJSON(realData);
+        if (realData) {
+            requestProperties.body = parseJSON(realData);
+        }
         chosenHandler(requestProperties, (status, data) => {
             const statusCode = typeof status === "number" ? status : 500;
             const payload = typeof data === "object" ? data : {};
