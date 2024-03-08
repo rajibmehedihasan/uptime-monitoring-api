@@ -18,7 +18,7 @@ const handler = {};
 handler.handleReqRes = (req, res) => {
     const parsedURL = new URL(
         req.url,
-        process.env.APP_BASE_URL || "http://localhost:3000/"
+        process.env.APP_BASE_URL || "http://localhost:3000"
     );
     const path = parsedURL.pathname;
     const trimmedPath = path.replace(/^\/+|\/+$/g, "");

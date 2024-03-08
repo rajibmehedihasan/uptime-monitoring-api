@@ -7,7 +7,7 @@
  */
 
 const { stringValidator, hash } = require("../../helpers/utilities");
-const { create } = require("../../lib/data");
+const { create, read } = require("../../lib/data");
 
 const handler = {};
 
@@ -63,7 +63,22 @@ handler._users.post = (requestProperties, callback) => {
 handler._users.get = (requestProperties, callback) => {
     const phone = stringValidator(requestProperties.searchParams.get("phone"));
 
-    console.log(phone);
+    if (phone) {
+        read("users", phone, (err, user) => {
+            if (!err && user) {
+                delete user.password;
+                callback(200, user);
+            } else {
+                callback(404, {
+                    error: "Requested user was not found!",
+                });
+            }
+        });
+    } else {
+        callback(404, {
+            error: "Requested user was not found!",
+        });
+    }
 };
 
 handler._users.put = (requestProperties, callback) => {};
