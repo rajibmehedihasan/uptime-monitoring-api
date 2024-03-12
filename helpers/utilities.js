@@ -26,7 +26,6 @@ utilities.parseJSON = (string) => {
 // Hash
 utilities.hash = (string, secret) => {
     const hash = createHmac("sha256", secret).update(string).digest("hex");
-    console.log(hash);
     return hash;
 };
 
