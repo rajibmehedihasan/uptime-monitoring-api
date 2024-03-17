@@ -12,7 +12,7 @@ const {
     parseJSON,
     phoneStringValidator,
 } = require("../../helpers/utilities");
-const { create, read, update } = require("../../lib/data");
+const { create, read, update, deleteData } = require("../../lib/data");
 
 const handler = {};
 
@@ -143,6 +143,37 @@ handler._users.put = (requestProperties, callback) => {
     }
 };
 
-handler._users.delete = (requestProperties, callback) => {};
+handler._users.delete = (requestProperties, callback) => {
+    const phone = phoneStringValidator(
+        requestProperties.queryStringObject.get("phone")
+    );
+
+    if (!phone) {
+        callback(400, {
+            error: "Invalid phone number provided.",
+        });
+        return;
+    }
+
+    read("users", phone, (err, user) => {
+        if (!err && user) {
+            deleteData("users", phone, (err2) => {
+                if (!err2) {
+                    callback(200, {
+                        message: "Deleted successfully!",
+                    });
+                } else {
+                    callback(500, {
+                        error: "There was a server side error!",
+                    });
+                }
+            });
+        } else {
+            callback(404, {
+                error: "Requested user was not found.",
+            });
+        }
+    });
+};
 
 module.exports = handler;
