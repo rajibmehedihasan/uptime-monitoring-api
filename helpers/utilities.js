@@ -25,12 +25,22 @@ utilities.parseJSON = (string) => {
 
 // Hash
 utilities.hash = (string, secret) => {
-    const hash = createHmac("sha256", secret).update(string).digest("hex");
-    return hash;
+    if (typeof string === "string" && string.length > 0) {
+        const hash = createHmac("sha256", secret).update(string).digest("hex");
+        return hash;
+    }
+
+    return false;
 };
 
 utilities.stringValidator = (value) => {
     return typeof value === "string" && value.trim().length > 0 ? value : false;
+};
+
+utilities.phoneStringValidator = (value) => {
+    return typeof value === "string" && value.trim().length === 11
+        ? value
+        : false;
 };
 
 module.exports = utilities;

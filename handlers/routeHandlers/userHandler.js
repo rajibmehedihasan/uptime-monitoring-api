@@ -6,8 +6,13 @@
  *
  */
 
-const { stringValidator, hash, parseJSON } = require("../../helpers/utilities");
-const { create, read } = require("../../lib/data");
+const {
+    stringValidator,
+    hash,
+    parseJSON,
+    phoneStringValidator,
+} = require("../../helpers/utilities");
+const { create, read, update } = require("../../lib/data");
 
 const handler = {};
 
@@ -31,7 +36,7 @@ handler._users.post = (requestProperties, callback) => {
     if (
         stringValidator(firstName) &&
         stringValidator(lastName) &&
-        stringValidator(phone) &&
+        phoneStringValidator(phone) &&
         stringValidator(password) &&
         tosAgreement === true
     ) {
@@ -61,7 +66,7 @@ handler._users.post = (requestProperties, callback) => {
 };
 
 handler._users.get = (requestProperties, callback) => {
-    const phone = stringValidator(
+    const phone = phoneStringValidator(
         requestProperties.queryStringObject.get("phone")
     );
 
@@ -85,7 +90,58 @@ handler._users.get = (requestProperties, callback) => {
     });
 };
 
-handler._users.put = (requestProperties, callback) => {};
+handler._users.put = (requestProperties, callback) => {
+    const { firstName, lastName, phone, password } = requestProperties.body;
+
+    const _phone = phoneStringValidator(phone);
+
+    if (!phoneStringValidator(_phone)) {
+        callback(400, {
+            error: "Invalid phone number.",
+        });
+        return;
+    }
+    if (
+        stringValidator(firstName) ||
+        stringValidator(lastName) ||
+        stringValidator(password)
+    ) {
+        read("users", _phone, (err, user) => {
+            const _user = { ...parseJSON(user) };
+            if (!err && _user) {
+                if (firstName) {
+                    _user.firstName = firstName;
+                }
+                if (lastName) {
+                    _user.lastName = lastName;
+                }
+                if (password) {
+                    _user.password = hash(password, _phone);
+                }
+                update("users", phone, _user, (err2) => {
+                    if (err2) {
+                        callback(500, {
+                            error: "There was a problem in the server side!",
+                        });
+                        return;
+                    }
+
+                    callback(200, {
+                        message: "User updated successfully!",
+                    });
+                });
+            } else {
+                callback(404, {
+                    error: "Requested user was not found.",
+                });
+            }
+        });
+    } else {
+        callback(400, {
+            error: "You have a problem in your request!",
+        });
+    }
+};
 
 handler._users.delete = (requestProperties, callback) => {};
 
