@@ -26,7 +26,9 @@ utilities.parseJSON = (string) => {
 // Hash
 utilities.hash = (string, secret) => {
     if (typeof string === "string" && string.length > 0) {
-        const hash = createHmac("sha256", secret).update(string).digest("hex");
+        const hash = createHmac("sha256", secret || "app_secret_key")
+            .update(string)
+            .digest("hex");
         return hash;
     }
 
@@ -41,6 +43,26 @@ utilities.phoneStringValidator = (value) => {
     return typeof value === "string" && value.trim().length === 11
         ? value
         : false;
+};
+
+utilities.createRandomString = (strlength) => {
+    let length =
+        typeof strlength === "number" && strlength > 0 ? strlength : false;
+
+    if (length) {
+        const possiblecharacters = "abcdefghijklmnopqrstuvwxyz1234567890";
+        let output = "";
+
+        for (let i = 0; i <= length; i++) {
+            const randomCharacter = possiblecharacters.charAt(
+                Math.floor(Math.random() * possiblecharacters.length)
+            );
+            output += randomCharacter;
+        }
+        return output;
+    }
+
+    return false;
 };
 
 module.exports = utilities;

@@ -23,7 +23,7 @@ handler.userHandler = (requestProperties, callback) => {
     if (acceptedMethods.indexOf(method) > -1) {
         handler._users[method](requestProperties, callback);
     } else {
-        callback(500);
+        callback(405);
     }
 };
 
@@ -156,23 +156,32 @@ handler._users.delete = (requestProperties, callback) => {
     }
 
     read("users", phone, (err, user) => {
-        if (!err && user) {
-            deleteData("users", phone, (err2) => {
-                if (!err2) {
-                    callback(200, {
-                        message: "Deleted successfully!",
-                    });
-                } else {
-                    callback(500, {
-                        error: "There was a server side error!",
-                    });
-                }
+        if (err) {
+            callback(500, {
+                error: "There was a server side error!",
             });
-        } else {
+            return;
+        }
+
+        if (!user) {
             callback(404, {
                 error: "Requested user was not found.",
             });
+            return;
         }
+
+        deleteData("users", phone, (err2) => {
+            if (err2) {
+                callback(500, {
+                    error: "There was a server side error!",
+                });
+                return;
+            }
+
+            callback(200, {
+                message: "Deleted successfully!",
+            });
+        });
     });
 };
 
