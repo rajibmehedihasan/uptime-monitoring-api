@@ -80,7 +80,8 @@ handler._token.post = (requestProperties, callback) => {
 };
 
 handler._token.get = (requestProperties, callback) => {
-    const id = stringValidator(requestProperties.queryStringObject.get("id"));
+    let id = requestProperties.queryStringObject.get("id");
+    id = stringValidator(id) && id.length === 20 ? id : false;
 
     if (!id) {
         callback(404, {
@@ -103,52 +104,41 @@ handler._token.get = (requestProperties, callback) => {
 };
 
 handler._token.put = (requestProperties, callback) => {
-    const { phone, password } = requestProperties.body;
-    const _phone = phoneStringValidator(phone);
-    const _password = stringValidator(password);
+    let { id, extend } = requestProperties.body;
+    id = stringValidator(id) && id.length === 20 ? id : false;
 
-    if (_phone && _password) {
-        read("users", _phone, (err, userData) => {
-            if (err || !userData) {
-                callback(400, {
-                    error: "Invalid phone number provided.",
-                });
-                return;
-            }
-
-            const _userData = parseJSON(userData);
-            const hashPassword = hash(password, phone);
-
-            if (hashPassword === _userData.password) {
-                const tokenID = createRandomString(20);
-                const expires = Date.now() + 60 * 60 * 1000;
-                const tokenObject = {
-                    phone,
-                    id: tokenID,
-                    expires,
-                };
-
-                create("tokens", tokenID, tokenObject, (err2) => {
-                    if (err2) {
-                        callback(500, {
-                            error: "There was a problem in the server side!",
-                        });
-                        return;
-                    }
-
-                    callback(200, tokenObject);
-                });
-            } else {
-                callback(400, {
-                    error: "Password not valid!",
-                });
-            }
+    if (!id || !extend) {
+        callback(404, {
+            error: "Invalid request body",
         });
-    } else {
-        callback(400, {
-            error: "You have a problem in your request",
-        });
+        return;
     }
+
+    read("tokens", id, (err, tokenData) => {
+        if (err || !tokenData) {
+            callback(400, {
+                error: "There was a problem in your request",
+            });
+        }
+        const tokenObj = parseJSON(tokenData);
+
+        if (tokenObj.expires > Date.now()) {
+            tokenObj.expires = Date.now() + 60 * 60 * 1000;
+            update("tokens", id, tokenObj, (err) => {
+                if (err) {
+                    callback(500, {
+                        error: "Internal server error!",
+                    });
+                    return;
+                }
+                callback(200);
+            });
+        } else {
+            callback(400, {
+                error: "Token already expired!",
+            });
+        }
+    });
 };
 
 handler._token.delete = (requestProperties, callback) => {
