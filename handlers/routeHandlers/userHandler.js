@@ -13,6 +13,7 @@ const {
     phoneStringValidator,
 } = require("../../helpers/utilities");
 const { create, read, update, deleteData } = require("../../lib/data");
+const { _token } = require("./tokenHandler");
 
 const handler = {};
 
@@ -77,16 +78,30 @@ handler._users.get = (requestProperties, callback) => {
         });
     }
 
-    read("users", phone, (err, userData) => {
-        if (err || !userData) {
-            return callback(404, {
-                error: "Requested user was not found.",
+    const token =
+        typeof requestProperties.headersObject.token === "string"
+            ? requestProperties.headersObject.token
+            : false;
+
+    console.log(token);
+    _token.verify(token, phone, (tokenId) => {
+        if (!tokenId) {
+            return callback(403, {
+                error: "Authentication faliure!",
             });
         }
 
-        const user = parseJSON(userData);
-        delete user.password;
-        return callback(200, user);
+        read("users", phone, (err, userData) => {
+            if (err || !userData) {
+                return callback(404, {
+                    error: "Requested user was not found.",
+                });
+            }
+
+            const user = parseJSON(userData);
+            delete user.password;
+            return callback(200, user);
+        });
     });
 };
 
