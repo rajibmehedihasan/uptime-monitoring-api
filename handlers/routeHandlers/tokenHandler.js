@@ -142,101 +142,63 @@ handler._token.put = (requestProperties, callback) => {
 };
 
 handler._token.delete = (requestProperties, callback) => {
-    const { phone, password } = requestProperties.body;
-    const _phone = phoneStringValidator(phone);
-    const _password = stringValidator(password);
+    let id = requestProperties.queryStringObject.get("id");
+    id = stringValidator(id) && id.length === 20 ? id : false;
 
-    if (_phone && _password) {
-        read("users", _phone, (err, userData) => {
-            if (err || !userData) {
-                callback(400, {
-                    error: "Invalid phone number provided.",
+    if (!id) {
+        callback(404, {
+            error: "Invalid Request",
+        });
+        return;
+    }
+
+    read("tokens", id, (err, tokenData) => {
+        if (err) {
+            callback(500, {
+                error: "There was a server side error!",
+            });
+            return;
+        }
+
+        if (!tokenData) {
+            callback(404, {
+                error: "Not found!",
+            });
+            return;
+        }
+
+        deleteData("tokens", id, (err2) => {
+            if (err2) {
+                callback(500, {
+                    error: "There was a server side error!",
                 });
                 return;
             }
 
-            const _userData = parseJSON(userData);
-            const hashPassword = hash(password, phone);
-
-            if (hashPassword === _userData.password) {
-                const tokenID = createRandomString(20);
-                const expires = Date.now() + 60 * 60 * 1000;
-                const tokenObject = {
-                    phone,
-                    id: tokenID,
-                    expires,
-                };
-
-                create("tokens", tokenID, tokenObject, (err2) => {
-                    if (err2) {
-                        callback(500, {
-                            error: "There was a problem in the server side!",
-                        });
-                        return;
-                    }
-
-                    callback(200, tokenObject);
-                });
-            } else {
-                callback(400, {
-                    error: "Password not valid!",
-                });
-            }
+            callback(200, {
+                message: "Deleted successfully!",
+            });
         });
-    } else {
-        callback(400, {
-            error: "You have a problem in your request",
-        });
-    }
+    });
 };
 
-handler._token.verify = (requestProperties, callback) => {
-    const { phone, password } = requestProperties.body;
-    const _phone = phoneStringValidator(phone);
-    const _password = stringValidator(password);
+handler._token.verify = (id, phoneNumber, callback) => {
+    read("tokens", id, (err, tokenData) => {
+        if (!err || !tokenData) {
+            callback(false);
+            return;
+        }
 
-    if (_phone && _password) {
-        read("users", _phone, (err, userData) => {
-            if (err || !userData) {
-                callback(400, {
-                    error: "Invalid phone number provided.",
-                });
-                return;
-            }
+        const _tokenData = parseJSON(tokenData);
+        const { phone, expires } = _tokenData;
+        const timeNow = Date.now();
 
-            const _userData = parseJSON(userData);
-            const hashPassword = hash(password, phone);
-
-            if (hashPassword === _userData.password) {
-                const tokenID = createRandomString(20);
-                const expires = Date.now() + 60 * 60 * 1000;
-                const tokenObject = {
-                    phone,
-                    id: tokenID,
-                    expires,
-                };
-
-                create("tokens", tokenID, tokenObject, (err2) => {
-                    if (err2) {
-                        callback(500, {
-                            error: "There was a problem in the server side!",
-                        });
-                        return;
-                    }
-
-                    callback(200, tokenObject);
-                });
-            } else {
-                callback(400, {
-                    error: "Password not valid!",
-                });
-            }
-        });
-    } else {
-        callback(400, {
-            error: "You have a problem in your request",
-        });
-    }
+        if (phone === phoneNumber && expires > timeNow) {
+            callback(true);
+        } else {
+            callback(false);
+        }
+    });
 };
 
 module.exports = handler;
