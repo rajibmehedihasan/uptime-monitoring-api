@@ -18,13 +18,13 @@ const { create, read, update, deleteData } = require("../../lib/data");
 const handler = {};
 
 handler.tokenHandler = (requestProperties, callback) => {
-    const acceptedMethods = ["get", "post", "put", "delete"];
     const { method } = requestProperties;
-
-    if (acceptedMethods.indexOf(method) > -1) {
+    if (handler._token[method]) {
         handler._token[method](requestProperties, callback);
     } else {
-        callback(405);
+        callback(405, {
+            error: "Method not allowed!",
+        });
     }
 };
 
@@ -38,68 +38,54 @@ handler._token.post = (requestProperties, callback) => {
     if (_phone && _password) {
         read("users", _phone, (err, userData) => {
             if (err || !userData) {
-                callback(400, {
+                return callback(400, {
                     error: "Invalid phone number provided.",
                 });
-                return;
             }
 
             const _userData = parseJSON(userData);
             const hashPassword = hash(password, phone);
 
-            if (hashPassword === _userData.password) {
-                const tokenID = createRandomString(20);
-                const expires = Date.now() + 60 * 60 * 1000;
-                const tokenObject = {
-                    phone,
-                    id: tokenID,
-                    expires,
-                };
-
-                create("tokens", tokenID, tokenObject, (err2) => {
-                    if (err2) {
-                        callback(500, {
-                            error: "There was a problem in the server side!",
-                        });
-                        return;
-                    }
-
-                    callback(200, tokenObject);
-                });
-            } else {
-                callback(400, {
+            if (hashPassword !== _userData.password) {
+                return callback(400, {
                     error: "Password not valid!",
                 });
             }
+
+            const tokenID = createRandomString(20);
+            const expires = Date.now() + 60 * 60 * 1000;
+            const tokenObject = { phone, id: tokenID, expires };
+
+            create("tokens", tokenID, tokenObject, (err2) => {
+                if (err2) {
+                    return callback(500, {
+                        error: "There was a problem in the server side!",
+                    });
+                }
+
+                return callback(200, tokenObject);
+            });
         });
     } else {
-        callback(400, {
+        return callback(400, {
             error: "You have a problem in your request",
         });
     }
 };
 
 handler._token.get = (requestProperties, callback) => {
-    let id = requestProperties.queryStringObject.get("id");
-    id = stringValidator(id) && id.length === 20 ? id : false;
+    const id = requestProperties.queryStringObject.get("id");
 
-    if (!id) {
-        callback(404, {
-            error: "Invalid Request",
-        });
-        return;
+    if (!stringValidator(id) || id.length !== 20) {
+        return callback(404, { error: "Invalid Request" });
     }
 
     read("tokens", id, (err, tokenData) => {
-        const token = { ...parseJSON(tokenData) };
-        if (err || !token) {
-            callback(404, {
-                error: "Requested user not found!",
-            });
-            return;
+        if (err || !tokenData) {
+            return callback(404, { error: "Requested user not found!" });
         }
 
-        callback(200, token);
+        return callback(200, parseJSON(tokenData));
     });
 };
 
@@ -108,96 +94,76 @@ handler._token.put = (requestProperties, callback) => {
     id = stringValidator(id) && id.length === 20 ? id : false;
 
     if (!id || !extend) {
-        callback(404, {
-            error: "Invalid request body",
-        });
-        return;
+        return callback(400, { error: "Invalid request body" });
     }
 
     read("tokens", id, (err, tokenData) => {
         if (err || !tokenData) {
-            callback(400, {
+            return callback(400, {
                 error: "There was a problem in your request",
             });
         }
+
         const tokenObj = parseJSON(tokenData);
 
-        if (tokenObj.expires > Date.now()) {
-            tokenObj.expires = Date.now() + 60 * 60 * 1000;
-            update("tokens", id, tokenObj, (err) => {
-                if (err) {
-                    callback(500, {
-                        error: "Internal server error!",
-                    });
-                    return;
-                }
-                callback(200);
-            });
-        } else {
-            callback(400, {
-                error: "Token already expired!",
-            });
+        if (tokenObj.expires <= Date.now()) {
+            return callback(400, { error: "Token already expired!" });
         }
+
+        tokenObj.expires = Date.now() + 60 * 60 * 1000;
+
+        update("tokens", id, tokenObj, (err) => {
+            if (err) {
+                return callback(500, { error: "Internal server error!" });
+            }
+
+            return callback(200);
+        });
     });
 };
 
 handler._token.delete = (requestProperties, callback) => {
-    let id = requestProperties.queryStringObject.get("id");
-    id = stringValidator(id) && id.length === 20 ? id : false;
+    const id = requestProperties.queryStringObject.get("id");
 
-    if (!id) {
-        callback(404, {
-            error: "Invalid Request",
-        });
-        return;
+    if (!stringValidator(id) || id.length !== 20) {
+        return callback(404, { error: "Invalid Request" });
     }
 
     read("tokens", id, (err, tokenData) => {
         if (err) {
-            callback(500, {
-                error: "There was a server side error!",
-            });
-            return;
+            return callback(500, { error: "There was a server side error!" });
         }
 
         if (!tokenData) {
-            callback(404, {
-                error: "Not found!",
-            });
-            return;
+            return callback(404, { error: "Not found!" });
         }
 
         deleteData("tokens", id, (err2) => {
             if (err2) {
-                callback(500, {
+                return callback(500, {
                     error: "There was a server side error!",
                 });
-                return;
             }
 
-            callback(200, {
-                message: "Deleted successfully!",
-            });
+            return callback(200, { message: "Deleted successfully!" });
         });
     });
 };
 
 handler._token.verify = (id, phoneNumber, callback) => {
     read("tokens", id, (err, tokenData) => {
-        if (!err || !tokenData) {
-            callback(false);
-            return;
+        if (err || !tokenData) {
+            return callback(false);
         }
 
         const _tokenData = parseJSON(tokenData);
         const { phone, expires } = _tokenData;
-        const timeNow = Date.now();
 
-        if (phone === phoneNumber && expires > timeNow) {
-            callback(true);
-        } else {
-            callback(false);
+        if (phone === phoneNumber && expires > Date.now()) {
+            return callback(true);
         }
+
+        return callback(false);
     });
 };
 

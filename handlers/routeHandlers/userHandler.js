@@ -17,13 +17,13 @@ const { create, read, update, deleteData } = require("../../lib/data");
 const handler = {};
 
 handler.userHandler = (requestProperties, callback) => {
-    const acceptedMethods = ["get", "post", "put", "delete"];
     const { method } = requestProperties;
-
-    if (acceptedMethods.indexOf(method) > -1) {
+    if (handler._users[method]) {
         handler._users[method](requestProperties, callback);
     } else {
-        callback(405);
+        callback(405, {
+            error: "Method not allowed!",
+        });
     }
 };
 
@@ -40,26 +40,27 @@ handler._users.post = (requestProperties, callback) => {
         stringValidator(password) &&
         tosAgreement === true
     ) {
-        const _data = {
+        const hashedPassword = hash(password, phone);
+        const userData = {
             firstName,
             lastName,
             phone,
-            password: hash(password, phone),
+            password: hashedPassword,
             tosAgreement,
         };
-        create("users", phone, _data, (err) => {
+
+        create("users", phone, userData, (err) => {
             if (!err) {
-                callback(200, {
+                return callback(200, {
                     message: "User created successfully",
                 });
-            } else {
-                callback(500, {
-                    error: err || "Could not able to create user",
-                });
             }
+            return callback(500, {
+                error: "Could not able to create user",
+            });
         });
     } else {
-        callback(400, {
+        return callback(400, {
             error: "Invalid request body",
         });
     }
@@ -71,22 +72,21 @@ handler._users.get = (requestProperties, callback) => {
     );
 
     if (!phone) {
-        callback(400, {
+        return callback(400, {
             error: "Invalid phone number provided.",
         });
-        return;
     }
 
-    read("users", phone, (err, user) => {
-        const _user = parseJSON(user);
-        if (!err && _user) {
-            delete _user.password;
-            callback(200, _user);
-        } else {
-            callback(404, {
+    read("users", phone, (err, userData) => {
+        if (err || !userData) {
+            return callback(404, {
                 error: "Requested user was not found.",
             });
         }
+
+        const user = parseJSON(userData);
+        delete user.password;
+        return callback(200, user);
     });
 };
 
@@ -95,52 +95,53 @@ handler._users.put = (requestProperties, callback) => {
 
     const _phone = phoneStringValidator(phone);
 
-    if (!phoneStringValidator(_phone)) {
-        callback(400, {
+    if (!_phone) {
+        return callback(400, {
             error: "Invalid phone number.",
         });
-        return;
     }
-    if (
-        stringValidator(firstName) ||
-        stringValidator(lastName) ||
-        stringValidator(password)
-    ) {
-        read("users", _phone, (err, user) => {
-            const _user = { ...parseJSON(user) };
-            if (!err && _user) {
-                if (firstName) {
-                    _user.firstName = firstName;
-                }
-                if (lastName) {
-                    _user.lastName = lastName;
-                }
-                if (password) {
-                    _user.password = hash(password, _phone);
-                }
-                update("users", phone, _user, (err2) => {
-                    if (err2) {
-                        callback(500, {
-                            error: "There was a problem in the server side!",
-                        });
-                        return;
-                    }
 
-                    callback(200, {
-                        message: "User updated successfully!",
-                    });
-                });
-            } else {
-                callback(404, {
-                    error: "Requested user was not found.",
-                });
-            }
-        });
-    } else {
-        callback(400, {
+    if (
+        !stringValidator(firstName) &&
+        !stringValidator(lastName) &&
+        !stringValidator(password)
+    ) {
+        return callback(400, {
             error: "You have a problem in your request!",
         });
     }
+
+    read("users", _phone, (err, userData) => {
+        if (err || !userData) {
+            return callback(404, {
+                error: "Requested user was not found.",
+            });
+        }
+
+        const user = parseJSON(userData);
+
+        if (firstName) {
+            user.firstName = firstName;
+        }
+        if (lastName) {
+            user.lastName = lastName;
+        }
+        if (password) {
+            user.password = hash(password, _phone);
+        }
+
+        update("users", _phone, user, (err) => {
+            if (err) {
+                return callback(500, {
+                    error: "There was a problem in the server side!",
+                });
+            }
+
+            return callback(200, {
+                message: "User updated successfully!",
+            });
+        });
+    });
 };
 
 handler._users.delete = (requestProperties, callback) => {
@@ -149,36 +150,32 @@ handler._users.delete = (requestProperties, callback) => {
     );
 
     if (!phone) {
-        callback(400, {
+        return callback(400, {
             error: "Invalid phone number provided.",
         });
-        return;
     }
 
-    read("users", phone, (err, user) => {
+    read("users", phone, (err, userData) => {
         if (err) {
-            callback(500, {
+            return callback(500, {
                 error: "There was a server side error!",
             });
-            return;
         }
 
-        if (!user) {
-            callback(404, {
+        if (!userData) {
+            return callback(404, {
                 error: "Requested user was not found.",
             });
-            return;
         }
 
-        deleteData("users", phone, (err2) => {
-            if (err2) {
-                callback(500, {
+        deleteData("users", phone, (err) => {
+            if (err) {
+                return callback(500, {
                     error: "There was a server side error!",
                 });
-                return;
             }
 
-            callback(200, {
+            return callback(200, {
                 message: "Deleted successfully!",
             });
         });
