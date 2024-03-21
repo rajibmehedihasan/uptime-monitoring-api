@@ -83,7 +83,6 @@ handler._users.get = (requestProperties, callback) => {
             ? requestProperties.headersObject.token
             : false;
 
-    console.log(token);
     _token.verify(token, phone, (tokenId) => {
         if (!tokenId) {
             return callback(403, {
@@ -126,34 +125,47 @@ handler._users.put = (requestProperties, callback) => {
         });
     }
 
-    read("users", _phone, (err, userData) => {
-        if (err || !userData) {
-            return callback(404, {
-                error: "Requested user was not found.",
+    const token =
+        typeof requestProperties.headersObject.token === "string"
+            ? requestProperties.headersObject.token
+            : false;
+
+    _token.verify(token, _phone, (tokenId) => {
+        if (!tokenId) {
+            return callback(403, {
+                error: "Authentication faliure!",
             });
         }
 
-        const user = parseJSON(userData);
-
-        if (firstName) {
-            user.firstName = firstName;
-        }
-        if (lastName) {
-            user.lastName = lastName;
-        }
-        if (password) {
-            user.password = hash(password, _phone);
-        }
-
-        update("users", _phone, user, (err) => {
-            if (err) {
-                return callback(500, {
-                    error: "There was a problem in the server side!",
+        read("users", _phone, (err, userData) => {
+            if (err || !userData) {
+                return callback(404, {
+                    error: "Requested user was not found.",
                 });
             }
 
-            return callback(200, {
-                message: "User updated successfully!",
+            const user = parseJSON(userData);
+
+            if (firstName) {
+                user.firstName = firstName;
+            }
+            if (lastName) {
+                user.lastName = lastName;
+            }
+            if (password) {
+                user.password = hash(password, _phone);
+            }
+
+            update("users", _phone, user, (err) => {
+                if (err) {
+                    return callback(500, {
+                        error: "There was a problem in the server side!",
+                    });
+                }
+
+                return callback(200, {
+                    message: "User updated successfully!",
+                });
             });
         });
     });
@@ -170,28 +182,41 @@ handler._users.delete = (requestProperties, callback) => {
         });
     }
 
-    read("users", phone, (err, userData) => {
-        if (err) {
-            return callback(500, {
-                error: "There was a server side error!",
+    const token =
+        typeof requestProperties.headersObject.token === "string"
+            ? requestProperties.headersObject.token
+            : false;
+
+    _token.verify(token, phone, (tokenId) => {
+        if (!tokenId) {
+            return callback(403, {
+                error: "Authentication faliure!",
             });
         }
 
-        if (!userData) {
-            return callback(404, {
-                error: "Requested user was not found.",
-            });
-        }
-
-        deleteData("users", phone, (err) => {
+        read("users", phone, (err, userData) => {
             if (err) {
                 return callback(500, {
                     error: "There was a server side error!",
                 });
             }
 
-            return callback(200, {
-                message: "Deleted successfully!",
+            if (!userData) {
+                return callback(404, {
+                    error: "Requested user was not found.",
+                });
+            }
+
+            deleteData("users", phone, (err) => {
+                if (err) {
+                    return callback(500, {
+                        error: "There was a server side error!",
+                    });
+                }
+
+                return callback(200, {
+                    message: "Deleted successfully!",
+                });
             });
         });
     });
