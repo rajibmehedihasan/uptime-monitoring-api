@@ -6,19 +6,25 @@
  *
  */
 
-const { stringValidator, hash, parseJSON } = require("../../helpers/utilities");
-const { create, read } = require("../../lib/data");
+const {
+    stringValidator,
+    hash,
+    parseJSON,
+    phoneStringValidator,
+} = require("../../helpers/utilities");
+const { create, read, update, deleteData } = require("../../lib/data");
+const { _token } = require("./tokenHandler");
 
 const handler = {};
 
 handler.userHandler = (requestProperties, callback) => {
-    const acceptedMethods = ["get", "post", "put", "delete"];
     const { method } = requestProperties;
-
-    if (acceptedMethods.indexOf(method) > -1) {
+    if (handler._users[method]) {
         handler._users[method](requestProperties, callback);
     } else {
-        callback(500);
+        callback(405, {
+            error: "Method not allowed!",
+        });
     }
 };
 
@@ -31,62 +37,189 @@ handler._users.post = (requestProperties, callback) => {
     if (
         stringValidator(firstName) &&
         stringValidator(lastName) &&
-        stringValidator(phone) &&
+        phoneStringValidator(phone) &&
         stringValidator(password) &&
         tosAgreement === true
     ) {
-        const _data = {
+        const hashedPassword = hash(password, phone);
+        const userData = {
             firstName,
             lastName,
             phone,
-            password: hash(password, phone),
+            password: hashedPassword,
             tosAgreement,
         };
-        create("users", phone, _data, (err) => {
+
+        create("users", phone, userData, (err) => {
             if (!err) {
-                callback(200, {
+                return callback(200, {
                     message: "User created successfully",
                 });
-            } else {
-                callback(500, {
-                    error: err || "Could not able to create user",
-                });
             }
+            return callback(500, {
+                error: "Could not able to create user",
+            });
         });
     } else {
-        callback(400, {
+        return callback(400, {
             error: "Invalid request body",
         });
     }
 };
 
 handler._users.get = (requestProperties, callback) => {
-    const phone = stringValidator(
+    const phone = phoneStringValidator(
         requestProperties.queryStringObject.get("phone")
     );
 
     if (!phone) {
-        callback(400, {
+        return callback(400, {
             error: "Invalid phone number provided.",
         });
-        return;
     }
 
-    read("users", phone, (err, user) => {
-        const _user = parseJSON(user);
-        if (!err && _user) {
-            delete _user.password;
-            callback(200, _user);
-        } else {
-            callback(404, {
-                error: "Requested user was not found.",
+    const token =
+        typeof requestProperties.headersObject.token === "string"
+            ? requestProperties.headersObject.token
+            : false;
+
+    _token.verify(token, phone, (tokenId) => {
+        if (!tokenId) {
+            return callback(403, {
+                error: "Authentication faliure!",
             });
         }
+
+        read("users", phone, (err, userData) => {
+            if (err || !userData) {
+                return callback(404, {
+                    error: "Requested user was not found.",
+                });
+            }
+
+            const user = parseJSON(userData);
+            delete user.password;
+            return callback(200, user);
+        });
     });
 };
 
-handler._users.put = (requestProperties, callback) => {};
+handler._users.put = (requestProperties, callback) => {
+    const { firstName, lastName, phone, password } = requestProperties.body;
 
-handler._users.delete = (requestProperties, callback) => {};
+    const _phone = phoneStringValidator(phone);
+
+    if (!_phone) {
+        return callback(400, {
+            error: "Invalid phone number.",
+        });
+    }
+
+    if (
+        !stringValidator(firstName) &&
+        !stringValidator(lastName) &&
+        !stringValidator(password)
+    ) {
+        return callback(400, {
+            error: "You have a problem in your request!",
+        });
+    }
+
+    const token =
+        typeof requestProperties.headersObject.token === "string"
+            ? requestProperties.headersObject.token
+            : false;
+
+    _token.verify(token, _phone, (tokenId) => {
+        if (!tokenId) {
+            return callback(403, {
+                error: "Authentication faliure!",
+            });
+        }
+
+        read("users", _phone, (err, userData) => {
+            if (err || !userData) {
+                return callback(404, {
+                    error: "Requested user was not found.",
+                });
+            }
+
+            const user = parseJSON(userData);
+
+            if (firstName) {
+                user.firstName = firstName;
+            }
+            if (lastName) {
+                user.lastName = lastName;
+            }
+            if (password) {
+                user.password = hash(password, _phone);
+            }
+
+            update("users", _phone, user, (err) => {
+                if (err) {
+                    return callback(500, {
+                        error: "There was a problem in the server side!",
+                    });
+                }
+
+                return callback(200, {
+                    message: "User updated successfully!",
+                });
+            });
+        });
+    });
+};
+
+handler._users.delete = (requestProperties, callback) => {
+    const phone = phoneStringValidator(
+        requestProperties.queryStringObject.get("phone")
+    );
+
+    if (!phone) {
+        return callback(400, {
+            error: "Invalid phone number provided.",
+        });
+    }
+
+    const token =
+        typeof requestProperties.headersObject.token === "string"
+            ? requestProperties.headersObject.token
+            : false;
+
+    _token.verify(token, phone, (tokenId) => {
+        if (!tokenId) {
+            return callback(403, {
+                error: "Authentication faliure!",
+            });
+        }
+
+        read("users", phone, (err, userData) => {
+            if (err) {
+                return callback(500, {
+                    error: "There was a server side error!",
+                });
+            }
+
+            if (!userData) {
+                return callback(404, {
+                    error: "Requested user was not found.",
+                });
+            }
+
+            deleteData("users", phone, (err) => {
+                if (err) {
+                    return callback(500, {
+                        error: "There was a server side error!",
+                    });
+                }
+
+                return callback(200, {
+                    message: "Deleted successfully!",
+                });
+            });
+        });
+    });
+};
 
 module.exports = handler;
