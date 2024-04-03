@@ -8,7 +8,7 @@
 
 const http = require("http");
 const { handleReqRes } = require("./helpers/handleReqRes");
-const environment = require("./handlers/routeHandlers/environment");
+const environment = require("./helpers/environment");
 
 const app = {};
 

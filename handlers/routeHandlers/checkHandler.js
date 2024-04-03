@@ -10,10 +10,9 @@ const {
     stringValidator,
     parseJSON,
     createRandomString,
-    phoneStringValidator,
 } = require("../../helpers/utilities");
 const { read, create, update, deleteData } = require("../../lib/data");
-const { maxChecks } = require("./environment");
+const { maxChecks } = require("../../helpers/environment");
 const { _token } = require("./tokenHandler");
 
 const handler = {};
