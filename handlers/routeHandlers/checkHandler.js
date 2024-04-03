@@ -150,4 +150,33 @@ handler._check.post = (requestProperties, callback) => {
     });
 };
 
+handler._check.get = (requestProperties, callback) => {
+    const id = requestProperties.queryStringObject.get("id");
+
+    if (!stringValidator(id) || id.length !== 20) {
+        return callback(404, { error: "Invalid Request" });
+    }
+
+    read("checks", id, (err, checkData) => {
+        if (err || !checkData) {
+            return callback(404, { error: "Requested check not found!" });
+        }
+
+        const token =
+            typeof requestProperties.headersObject.token === "string"
+                ? requestProperties.headersObject.token
+                : false;
+
+        _token.verify(token, parseJSON(checkData).phone, (tokenId) => {
+            if (!tokenId) {
+                return callback(403, {
+                    error: "Authentication faliure!",
+                });
+            }
+
+            return callback(200, parseJSON(checkData));
+        });
+    });
+};
+
 module.exports = handler;
