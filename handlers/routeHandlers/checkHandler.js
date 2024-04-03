@@ -44,7 +44,7 @@ handler._check.post = (requestProperties, callback) => {
 
     method =
         stringValidator(method) &&
-        ["get", "post", "put", "delete"].includes(protocol.toLowerCase())
+        ["GET", "POST", "PUT", "DELETE"].includes(method)
             ? method
             : false;
 
@@ -299,15 +299,49 @@ handler._check.delete = (requestProperties, callback) => {
                 });
             }
 
-            deleteData("users", phone, (err2) => {
+            deleteData("checks", id, (err2) => {
                 if (err2) {
                     return callback(500, {
                         error: "There was a server side error!",
                     });
                 }
 
-                return callback(200, {
-                    message: "Deleted successfully!",
+                read("users", phone, (err3, userData) => {
+                    if (err3 || !userData) {
+                        return callback(500, {
+                            error: "There was a server side error!",
+                        });
+                    }
+                    const userObject = parseJSON(userData);
+                    const userChecks =
+                        typeof userObject.checks === "object" &&
+                        userObject.checks instanceof Array
+                            ? userObject.checks
+                            : [];
+
+                    const checkPosition = userChecks.indexOf(id);
+                    if (checkPosition > -1) {
+                        userChecks.splice(checkPosition, 1);
+                        userObject.checks = userChecks;
+                        update(
+                            "users",
+                            userObject.phone,
+                            userObject,
+                            (err4) => {
+                                if (!err4) {
+                                    callback(200);
+                                } else {
+                                    callback(500, {
+                                        error: "There was a server side problem!",
+                                    });
+                                }
+                            }
+                        );
+                    } else {
+                        callback(500, {
+                            error: "The check id that you are trying to remove is not found in user!",
+                        });
+                    }
                 });
             });
         });
