@@ -10,10 +10,12 @@ const environments = {
     development: {
         port: 3000,
         name: "Development",
+        maxChecks: 5,
     },
     production: {
         port: 4000,
         name: "Production",
+        maxChecks: 5,
     },
 };
 
