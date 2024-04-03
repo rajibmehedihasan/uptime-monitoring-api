@@ -12,7 +12,7 @@ const {
     createRandomString,
     phoneStringValidator,
 } = require("../../helpers/utilities");
-const { read, create, update } = require("../../lib/data");
+const { read, create, update, deleteData } = require("../../lib/data");
 const { maxChecks } = require("./environment");
 const { _token } = require("./tokenHandler");
 
@@ -241,15 +241,6 @@ handler._check.put = (requestProperties, callback) => {
                 });
             }
 
-            // read("checks", id, (err2, checkObject) => {
-            //     if (err || !checkObject) {
-            //         return callback(404, {
-            //             error: "Requested check was not found.",
-            //         });
-            //     }
-
-            // const _checkObject = parseJSON(checkObject);
-
             if (protocol) {
                 checkObject.protocol = protocol;
             }
@@ -275,6 +266,48 @@ handler._check.put = (requestProperties, callback) => {
 
                 return callback(200, {
                     message: "Check updated successfully!",
+                });
+            });
+        });
+    });
+};
+
+handler._check.delete = (requestProperties, callback) => {
+    const id = requestProperties.queryStringObject.get("id");
+
+    if (!stringValidator(id) || id.length !== 20) {
+        return callback(404, { error: "Invalid Request!" });
+    }
+
+    read("checks", id, (err, checkData) => {
+        const checkObject = parseJSON(checkData);
+
+        if (err || !checkData) {
+            return callback(404, { error: "Requested check not found!" });
+        }
+
+        const token =
+            typeof requestProperties.headersObject.token === "string"
+                ? requestProperties.headersObject.token
+                : false;
+        const { phone } = checkObject;
+
+        _token.verify(token, phone, (isTokenValid) => {
+            if (!isTokenValid) {
+                return callback(403, {
+                    error: "Authentication faliure!",
+                });
+            }
+
+            deleteData("users", phone, (err2) => {
+                if (err2) {
+                    return callback(500, {
+                        error: "There was a server side error!",
+                    });
+                }
+
+                return callback(200, {
+                    message: "Deleted successfully!",
                 });
             });
         });
