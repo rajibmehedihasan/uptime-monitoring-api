@@ -10,6 +10,7 @@ const {
     stringValidator,
     parseJSON,
     createRandomString,
+    phoneStringValidator,
 } = require("../../helpers/utilities");
 const { read, create, update } = require("../../lib/data");
 const { maxChecks } = require("./environment");
@@ -48,7 +49,7 @@ handler._check.post = (requestProperties, callback) => {
             : false;
 
     successCodes =
-        successCodes === "object" && successCodes instanceof Array
+        typeof successCodes === "object" && successCodes instanceof Array
             ? successCodes
             : false;
 
@@ -175,6 +176,107 @@ handler._check.get = (requestProperties, callback) => {
             }
 
             return callback(200, parseJSON(checkData));
+        });
+    });
+};
+
+handler._check.put = (requestProperties, callback) => {
+    let { id, protocol, url, method, successCodes, timeoutSeconds } =
+        requestProperties.body;
+
+    id = stringValidator(id) && id.length === 20 ? id : false;
+
+    protocol =
+        stringValidator(protocol) && ["http", "https"].includes(protocol)
+            ? protocol
+            : false;
+
+    url = stringValidator(url);
+
+    method = stringValidator(method) && ["GET", "POST", "PUT", "DELETE"]
+        ? method
+        : false;
+
+    successCodes =
+        typeof successCodes === "object" && successCodes instanceof Array
+            ? successCodes
+            : false;
+
+    timeoutSeconds =
+        typeof timeoutSeconds === "number" &&
+        timeoutSeconds % 1 === 0 &&
+        timeoutSeconds >= 1 &&
+        timeoutSeconds <= 5
+            ? timeoutSeconds
+            : false;
+
+    if (!id) {
+        return callback(400, {
+            error: "Invalid request!",
+        });
+    }
+
+    if (!protocol || !url || !method || !successCodes || !timeoutSeconds) {
+        return callback(400, {
+            error: "Invalid request!",
+        });
+    }
+
+    read("checks", id, (err, checkData) => {
+        if (err || !checkData) {
+            return callback(404, { error: "Requested check not found!" });
+        }
+
+        const token =
+            typeof requestProperties.headersObject.token === "string"
+                ? requestProperties.headersObject.token
+                : false;
+
+        const checkObject = parseJSON(checkData);
+
+        _token.verify(token, checkObject.phone, (isTokenValid) => {
+            if (!isTokenValid) {
+                return callback(403, {
+                    error: "Authentication faliure!",
+                });
+            }
+
+            // read("checks", id, (err2, checkObject) => {
+            //     if (err || !checkObject) {
+            //         return callback(404, {
+            //             error: "Requested check was not found.",
+            //         });
+            //     }
+
+            // const _checkObject = parseJSON(checkObject);
+
+            if (protocol) {
+                checkObject.protocol = protocol;
+            }
+            if (url) {
+                checkObject.url = url;
+            }
+            if (method) {
+                checkObject.method = method;
+            }
+            if (successCodes) {
+                checkObject.successCodes = successCodes;
+            }
+            if (timeoutSeconds) {
+                checkObject.timeoutSeconds = timeoutSeconds;
+            }
+
+            update("checks", id, checkObject, (err2) => {
+                if (err2) {
+                    return callback(500, {
+                        error: "There was a problem in the server side!",
+                    });
+                }
+
+                return callback(200, {
+                    message: "Check updated successfully!",
+                });
+            });
         });
     });
 };
